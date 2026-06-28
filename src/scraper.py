@@ -73,11 +73,25 @@ class WebScraper:
                 logger.info(f"✅ Metadata found: {total_chapters} total chapters, {chapters_per_page} per page.")
 
                 # 2. Calculate target pages
-                # Chapters are in descending order, so we calculate page numbers based on offset from the total.
-                start_page = math.floor((total_chapters - self.end_chapter) / chapters_per_page) + 1
-                end_page = math.floor((total_chapters - self.start_chapter) / chapters_per_page) + 1
+                # Clamp the chapter range to valid numbers to prevent errors from user input.
+                safe_start_chapter = max(1, self.start_chapter)
+                safe_end_chapter = min(total_chapters, self.end_chapter)
+
+                if safe_start_chapter > safe_end_chapter:
+                    logger.warning(f"Start chapter ({self.start_chapter}) is greater than end chapter ({self.end_chapter}). No chapters to scrape.")
+                    return []
+
+                # Chapters are in descending order (e.g., Chapter 3067 is on Page 1).
+                # The page containing the LOWEST chapter number (e.g., 1) will have the HIGHEST page number.
+                page_for_start_chapter = math.floor((total_chapters - safe_start_chapter) / chapters_per_page) + 1
+                page_for_end_chapter = math.floor((total_chapters - safe_end_chapter) / chapters_per_page) + 1
+
+                # The range should go from the smaller page number to the larger one.
+                start_page = min(page_for_start_chapter, page_for_end_chapter)
+                end_page = max(page_for_start_chapter, page_for_end_chapter)
                 
-                pages_to_visit = set(range(start_page, end_page + 1))
+                # Ensure page numbers are always positive.
+                pages_to_visit = set(range(max(1, start_page), max(1, end_page) + 1))
                 logger.info(f"Calculated pages to visit: {sorted(list(pages_to_visit))}")
 
                 # 3. Scrape only the necessary pages

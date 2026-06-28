@@ -5,7 +5,7 @@ from ebooklib import epub
 
 
 class EpubConverter:
-    def __init__(self, folder_path: str, author: str = "Unknown", language: str = "en", output_dir: str = "epubs", book_title: str = "New Book"):
+    def __init__(self, folder_path: str, book_title: str, author: str, language: str, epub_dir: str = "."):
         """
         Initialize EPUB converter with folder containing txt files.
         
@@ -13,13 +13,13 @@ class EpubConverter:
             folder_path: Path to folder containing .txt files to convert
             author: Book author name
             language: Book language code
-            output_dir: Directory where EPUB files will be saved
-            book_title: Custom book title (if None, will extract from first file)
+            epub_dir: Directory where EPUB files will be saved
+            book_title: Custom book title
         """
         self.folder_path = Path(folder_path)
         self.author = author
         self.language = language
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(epub_dir)  # FIX: Use the correct input parameter 'epub_dir'
         self.custom_title = book_title
         self.title = None
         self.book = epub.EpubBook()
@@ -31,7 +31,7 @@ class EpubConverter:
         if not self.folder_path.exists():
             raise ValueError(f"Folder not found: {folder_path}")
         if not self.folder_path.is_dir():
-            raise ValueError(f"Path is not a directory: {folder_path}")
+            raise ValueError(f"Path is not a directory: {self.folder_path}")
     
     def _load_txt_files(self) -> list[tuple[str, str]]:
         """
@@ -40,7 +40,6 @@ class EpubConverter:
         Returns:
             List of tuples (filename, content)
         """
-        # Get all .txt files
         txt_files = sorted(self.folder_path.glob("*.txt"))
         
         if not txt_files:
@@ -59,17 +58,12 @@ class EpubConverter:
         
     def _sanitize_filename(self, text: str) -> str:
         """Convert text to safe filename by removing invalid characters."""
-        # Remove or replace invalid filename characters
         safe = re.sub(r'[<>:"/\\|?*]', '', text)
-        # Limit length
         safe = safe[:100].strip()
-        # Replace spaces with underscores
-        safe = safe.replace(' ', '_')
         return safe if safe else "book"
     
     def _extract_title(self, files_content: list[tuple[str, str]]) -> str:
         """Extract book title from first line of first file or use custom title."""
-        # Use custom title if provided
         if self.custom_title:
             return self.custom_title
         
@@ -91,13 +85,11 @@ class EpubConverter:
         Returns:
             Full path of created EPUB file
         """
-        # Load all txt files
         files_content = self._load_txt_files()
         
         if not files_content:
             raise ValueError("No content to create EPUB")
         
-        # Set book metadata
         title = self._extract_title(files_content)
         self.title = title
         self.book.set_title(title)
@@ -106,7 +98,6 @@ class EpubConverter:
         
         chapters = []
         
-        # Create chapters from txt files
         for i, (filename, content) in enumerate(files_content, 1):
             chapter = epub.EpubHtml(
                 title=filename,
@@ -114,7 +105,6 @@ class EpubConverter:
                 lang=self.language
             )
             
-            # Convert text to HTML
             paragraphs = content.split('\n')
             html_content = f'<h1>{paragraphs[0]}</h1>'
             
@@ -125,27 +115,18 @@ class EpubConverter:
             chapter.set_content(html_content)
             self.book.add_item(chapter)
             chapters.append(chapter)
-            print(f"📄 Added chapter {i}: {filename}")
         
-        # Add table of contents
         self.book.toc = tuple(chapters)
-        
-        # Add navigation files
         self.book.add_item(epub.EpubNcx())
         self.book.add_item(epub.EpubNav())
-        
-        # Define spine (reading order)
         self.book.spine = ['nav'] + chapters
         
-        # Generate filename from title
-        filename = self._sanitize_filename(title) + '.epub'
+        # FIX: Use the correct variables and function call to write the file
+        safe_title = self._sanitize_filename(self.title)
+        epub_path = self.output_dir / f"{safe_title}.epub"
         
-        # Create full path with output directory
-        filepath = self.output_dir / filename
+        epub.write_epub(epub_path, self.book, {})
         
-        # Write EPUB file
-        epub.write_epub(str(filepath), self.book)
+        print(f"✅ EPUB for '{self.title}' created at: {epub_path}")
         
-        print(f"✅ EPUB created with {len(chapters)} chapters")
-        
-        return str(filepath)
+        return str(epub_path)

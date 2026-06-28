@@ -1,6 +1,6 @@
-from scraper import WebScraper
-from epub_converter import EpubConverter
-from email_sender import EmailSender
+from src.scraper import WebScraper
+from src.epub_converter import EpubConverter
+from src.email_sender import EmailSender
 
 if __name__ == "__main__":
     book_url = input("Enter the main book URL (the one with the chapter list): ").strip()

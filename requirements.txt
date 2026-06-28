@@ -4,3 +4,4 @@ fake-useragent
 urllib3
 playwright
 ebooklib
+PySide6
